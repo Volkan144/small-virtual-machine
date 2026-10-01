@@ -1,0 +1,30 @@
+#ifndef VM_H
+#define VM_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define STACK_SIZE 256
+
+typedef enum {
+    VM_OK = 0,
+    VM_ERR_STACK_OVERFLOW,
+    VM_ERR_STACK_UNDERFLOW,
+    VM_ERR_UNKNOWN_OPCODE,
+    VM_ERR_PC_OUT_OF_BOUNDS
+} VMResult;
+
+typedef struct {
+    const int32_t *code;   /* bytecode                         */
+    size_t code_len;       /* number of words in the program   */
+    size_t pc;             /* program counter                  */
+
+    int32_t stack[STACK_SIZE];
+    size_t sp;             /* index of the next free slot      */
+} VM;
+
+void        vm_init(VM *vm, const int32_t *code, size_t code_len);
+VMResult    vm_run(VM *vm);
+const char *vm_result_str(VMResult r);
+
+#endif
