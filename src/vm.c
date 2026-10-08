@@ -9,8 +9,6 @@ void vm_init(VM *vm, const int32_t *code, size_t code_len) {
     vm->sp = 0;
 }
 
-/* TODO v1: implement push/pop with overflow/underflow checks.
- * Hint: return a VMResult, pass the popped value out via a pointer. */
 static VMResult push(VM *vm, int32_t value) {
     if (vm->sp >= STACK_SIZE){
         return VM_ERR_STACK_OVERFLOW;
