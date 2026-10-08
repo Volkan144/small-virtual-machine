@@ -136,12 +136,12 @@ VMResult vm_run(VM *vm) {
             break;
         }
         case OP_JZ:{
-            if (vm->sp <= 0){
-                return VM_ERR_STACK_UNDERFLOW;
-    }
+    
             size_t dest;
-            int32_t value = vm->stack[vm->sp -1] ;
-            VMResult r = read_target(vm, &dest);
+            int32_t value;
+            VMResult r = pop(vm, &value);
+            if (r != VM_OK) return r;
+            r = read_target(vm, &dest);
             if (r != VM_OK) return r;
             if (value == 0){ 
                 vm->pc = dest;
