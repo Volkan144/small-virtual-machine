@@ -7,6 +7,15 @@ void vm_init(VM *vm, const int32_t *code, size_t code_len) {
     vm->code_len = code_len;
     vm->pc = 0;
     vm->sp = 0;
+    vm->csp = 0;
+}
+
+static VMResult fetch_operand(VM *vm, int32_t *out){
+    if (vm->pc >= vm->code_len){
+        return VM_ERR_PC_OUT_OF_BOUNDS;
+    }
+    *out = vm->code[vm->pc++];
+    return VM_OK;
 }
 
 static VMResult push(VM *vm, int32_t value) {
@@ -17,7 +26,14 @@ static VMResult push(VM *vm, int32_t value) {
     vm->sp +=1;
     return VM_OK;
 }
-
+static VMResult call_push(VM *vm, size_t address) {
+    if (vm->csp >= CALL_STACK_SIZE){
+        return VM_ERR_CALL_STACK_OVERFLOW;
+    }
+    vm->callstack[vm->csp] = address;
+    vm->csp +=1;
+    return VM_OK;
+}
 static VMResult pop(VM *vm, int32_t *out) {
     if (vm->sp <= 0){
         return VM_ERR_STACK_UNDERFLOW;
@@ -27,8 +43,19 @@ static VMResult pop(VM *vm, int32_t *out) {
     return VM_OK;
 }
 
+static VMResult call_pop(VM *vm, size_t *out) {
+    if (vm->csp <= 0){
+        return VM_ERR_CALL_STACK_UNDERFLOW;
+    }
+    vm->csp -=1;
+    *out = vm->callstack[vm->csp];
+    return VM_OK;
+}
+
 static VMResult read_target(VM *vm, size_t *dest){
-    int32_t destination = vm->code[vm->pc++];
+    int32_t destination;
+    VMResult r = fetch_operand(vm, &destination);
+    if (r != VM_OK) return r;
     if(destination < 0 || (size_t)destination >= vm->code_len) return VM_ERR_PC_OUT_OF_BOUNDS;
     *dest = destination;
     return VM_OK;
@@ -49,8 +76,10 @@ VMResult vm_run(VM *vm) {
             return VM_OK;
         
         case OP_PUSH:{
-            int32_t value = vm->code[vm->pc++];
-            VMResult r = push(vm, value);
+            int32_t value;
+            VMResult r = fetch_operand(vm, &value);
+            if (r != VM_OK) return r;
+            r = push(vm, value);
             if (r != VM_OK)
                 return r;
             break;
@@ -145,6 +174,26 @@ VMResult vm_run(VM *vm) {
                 vm->pc = dest;
             }   
             break;
+        }
+
+        case OP_CALL:{
+            size_t dest;
+            VMResult r = read_target(vm, &dest);
+            if (r != VM_OK) return r;
+            r = call_push(vm, vm->pc);
+            if (r != VM_OK) return r;
+            vm->pc = dest;
+            break;
+
+        }
+
+        case OP_RET:{
+            size_t dest;
+            VMResult r = call_pop(vm, &dest);
+            if (r != VM_OK) return r;
+            vm->pc = dest;
+            break;
+
         }
         default:
             return VM_ERR_UNKNOWN_OPCODE;

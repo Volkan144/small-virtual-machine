@@ -102,6 +102,53 @@ static void test_jmp_out_of_bounds(void) {
     CHECK(vm_run(&vm) == VM_ERR_PC_OUT_OF_BOUNDS, "JMP to invalid target is rejected");
 }
 
+static void test_call_ret_factorial(void) {
+    const int32_t code[] = {
+        /*  0 */ OP_PUSH, 5,
+        /*  2 */ OP_CALL, 5,
+        /*  4 */ OP_HALT,
+
+        /* fact: expects n on top of the stack, leaves n! */
+        /*  5 */ OP_DUP,
+        /*  6 */ OP_JZ, 16,
+        /*  8 */ OP_DUP,
+        /*  9 */ OP_PUSH, 1,
+        /* 11 */ OP_SUB,
+        /* 12 */ OP_CALL, 5,
+        /* 14 */ OP_MUL,
+        /* 15 */ OP_RET,
+
+        /* base case */
+        /* 16 */ OP_POP,
+        /* 17 */ OP_PUSH, 1,
+        /* 19 */ OP_RET,
+    };
+    VM vm;
+    vm_init(&vm, code, sizeof code / sizeof code[0]);
+
+    CHECK(vm_run(&vm) == VM_OK, "recursive factorial runs without error");
+    CHECK(vm.sp == 1, "factorial leaves exactly one value");
+    CHECK(vm.stack[0] == 120, "factorial computes 5! = 120");
+    CHECK(vm.csp == 0, "all calls returned");
+}
+
+static void test_call_stack_overflow(void) {
+    const int32_t code[] = { OP_CALL, 0 };
+    VM vm;
+    vm_init(&vm, code, sizeof code / sizeof code[0]);
+
+    CHECK(vm_run(&vm) == VM_ERR_CALL_STACK_OVERFLOW, "infinite recursion reports call stack overflow");
+    CHECK(vm.csp == CALL_STACK_SIZE, "call stack overflow leaves the call stack exactly full");
+}
+
+static void test_ret_without_call(void) {
+    const int32_t code[] = { OP_RET, OP_HALT };
+    VM vm;
+    vm_init(&vm, code, sizeof code / sizeof code[0]);
+
+    CHECK(vm_run(&vm) == VM_ERR_CALL_STACK_UNDERFLOW, "RET without CALL reports call stack underflow");
+}
+
 int main(void) {
     test_halt();
     test_unknown_opcode();
@@ -112,6 +159,9 @@ int main(void) {
     test_jz_taken();
     test_jz_not_taken();
     test_jmp_out_of_bounds();
+    test_call_ret_factorial();
+    test_call_stack_overflow();
+    test_ret_without_call();
     printf("\n%s (%d failures)\n", failures ? "FAILED" : "ALL PASSED", failures);
     return failures ? 1 : 0;
 }
