@@ -14,7 +14,7 @@ make clean
 ## Roadmap
 
 - [x] **v1 – Stack VM:** PUSH, POP, ADD, SUB, MUL, DUP, JMP, JZ, PRINT, HALT
-- [ ] **v2 – Function calls:** CALL/RET, stack frames, local variables
+- [x] **v2 – Function calls:** CALL/RET, stack frames, local variables
 - [ ] **v3 – Assembler:** translate `.asm` source into bytecode, with label support
 - [ ] **v4 – LC-3:** emulate a real instruction set architecture
 - [ ] **v5 – Performance:** compare dispatch techniques (switch vs. computed goto)

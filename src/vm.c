@@ -26,11 +26,11 @@ static VMResult push(VM *vm, int32_t value) {
     vm->sp +=1;
     return VM_OK;
 }
-static VMResult call_push(VM *vm, size_t address) {
+static VMResult call_push(VM *vm, Frame frame) {
     if (vm->csp >= CALL_STACK_SIZE){
         return VM_ERR_CALL_STACK_OVERFLOW;
     }
-    vm->callstack[vm->csp] = address;
+    vm->callstack[vm->csp] = frame;
     vm->csp +=1;
     return VM_OK;
 }
@@ -43,7 +43,7 @@ static VMResult pop(VM *vm, int32_t *out) {
     return VM_OK;
 }
 
-static VMResult call_pop(VM *vm, size_t *out) {
+static VMResult call_pop(VM *vm, Frame *out) {
     if (vm->csp <= 0){
         return VM_ERR_CALL_STACK_UNDERFLOW;
     }
@@ -178,22 +178,61 @@ VMResult vm_run(VM *vm) {
 
         case OP_CALL:{
             size_t dest;
+            int32_t count;
+            Frame frame;
             VMResult r = read_target(vm, &dest);
             if (r != VM_OK) return r;
-            r = call_push(vm, vm->pc);
+            r= fetch_operand(vm, &count);
+            if (r != VM_OK) return r;
+            if (count < 0 || (size_t)count > vm->sp) return VM_ERR_STACK_UNDERFLOW;
+            frame.return_addr = vm->pc;
+            frame.saved_fp = vm->fp;
+            r = call_push(vm, frame);
             if (r != VM_OK) return r;
             vm->pc = dest;
+            vm->fp = vm->sp -count;
             break;
 
         }
 
         case OP_RET:{
-            size_t dest;
-            VMResult r = call_pop(vm, &dest);
+            Frame frame;
+            int32_t value;
+            VMResult r = call_pop(vm, &frame);
             if (r != VM_OK) return r;
-            vm->pc = dest;
+            if (vm->sp <= vm->fp) return VM_ERR_STACK_UNDERFLOW;
+            r = pop(vm, &value);
+            if (r != VM_OK) return r;
+            vm->sp = vm->fp;
+            r = push(vm, value);
+            if (r != VM_OK) return r;
+            vm->pc = frame.return_addr;
+            vm->fp = frame.saved_fp;
             break;
 
+        }
+        
+        case OP_LOAD:{
+            int32_t index;
+            VMResult r= fetch_operand(vm, &index);
+            if (r != VM_OK) return r;
+            if (index < 0 || vm->fp + (size_t)index >= vm->sp) return VM_ERR_INVALID_LOCAL;
+            int32_t value = vm->stack[vm->fp+index];
+            r = push(vm, value);
+            if (r != VM_OK) return r;
+            break;
+        }
+
+        case OP_STORE:{
+            int32_t index;
+            VMResult r= fetch_operand(vm, &index);
+            if (r != VM_OK) return r;
+            int32_t value;
+            r = pop(vm, &value);
+            if (r != VM_OK) return r;
+            if (index < 0 || vm->fp + (size_t)index >= vm->sp) return VM_ERR_INVALID_LOCAL;
+            vm->stack[vm->fp+index] = value;
+            break;
         }
         default:
             return VM_ERR_UNKNOWN_OPCODE;

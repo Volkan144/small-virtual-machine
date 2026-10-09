@@ -14,8 +14,14 @@ typedef enum {
     VM_ERR_UNKNOWN_OPCODE,
     VM_ERR_PC_OUT_OF_BOUNDS,
     VM_ERR_CALL_STACK_OVERFLOW,
-    VM_ERR_CALL_STACK_UNDERFLOW
+    VM_ERR_CALL_STACK_UNDERFLOW,
+    VM_ERR_INVALID_LOCAL
 } VMResult;
+
+typedef struct {
+    size_t return_addr;
+    size_t saved_fp;
+} Frame;
 
 typedef struct {
     const int32_t *code;   /* bytecode                         */
@@ -23,9 +29,10 @@ typedef struct {
     size_t pc;             /* program counter                  */
 
     int32_t stack[STACK_SIZE];
-    size_t callstack[CALL_STACK_SIZE];
+    Frame callstack[CALL_STACK_SIZE];
     size_t sp;             /* index of the next free slot      */
     size_t csp;
+    size_t fp;
 } VM;
 
 void        vm_init(VM *vm, const int32_t *code, size_t code_len);

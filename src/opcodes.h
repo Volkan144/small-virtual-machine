@@ -13,9 +13,10 @@ typedef enum {
     OP_JMP,       /* JMP <addr>   : pc = addr                */
     OP_JZ,        /* JZ <addr>    : pop; if 0 then pc = addr */
     OP_PRINT,     /* print top of stack (without popping)    */
-    /* v2: OP_CALL, OP_RET, OP_LOAD, OP_STORE, ... */
     OP_CALL,
     OP_RET,
+    OP_LOAD,
+    OP_STORE,
     OP_COUNT
 } Opcode;
 
