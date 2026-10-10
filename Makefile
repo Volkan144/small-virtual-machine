@@ -26,7 +26,7 @@ $(BUILD)/asm: assembler/asm.c src/opcodes.h | $(BUILD)
 	$(CC) $(CFLAGS) -Isrc $< -o $@
 
 run: $(BUILD)/vm
-	./$(BUILD)/vm
+	./$(BUILD)/vm $(PROG)
 
 test: $(BUILD)/test_vm
 	./$(BUILD)/test_vm
