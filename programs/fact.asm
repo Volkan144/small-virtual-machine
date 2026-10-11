@@ -1,15 +1,16 @@
-; factorial of 5
-push 5
-call 7 1
-print
-halt
-dup
-jz 19
-dup
-push 1
-sub
-call 7 1
-mul
-ret
-push 1
-ret
+        push 5
+        call fact 1
+        print
+        halt
+
+fact:   dup
+        jz base
+        dup
+        push 1
+        sub
+        call fact 1
+        mul
+        ret
+
+base:   push 1
+        ret

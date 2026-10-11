@@ -16,6 +16,18 @@ typedef struct{
     int nargs;
 } Instr;
 
+#define MAX_LABELS 256
+#define MAX_LABEL_LEN 32
+
+typedef struct {
+    char name[MAX_LABEL_LEN];
+    int32_t addr;
+} Label;
+
+static Label labels[MAX_LABELS];
+static size_t num_labels = 0;
+
+
 static const Instr instrs[] = {
     { "halt",  OP_HALT,  0 },
     { "push",  OP_PUSH,  1 },
@@ -38,15 +50,46 @@ static const Instr *find_instr(const char *name){
     for(size_t i=0; i<NUM_INSTRS; i++){
         if (strcmp(name, instrs[i].name) == 0) {
             return &instrs[i];
-        
+            
         }
     }
     return NULL;
 }
 
-
-
 #define NUM_INSTRS (sizeof instrs / sizeof instrs[0])
+
+
+static const Label *find_label(const char *name){
+    for(size_t i = 0; i < num_labels; i++){
+        if(strcmp(name, labels[i].name) == 0){
+            return &labels[i];
+        }
+    }
+    return NULL;
+
+}
+
+static int add_label(const char *name, int32_t addr, int lineno){
+    if(find_label(name) != NULL) {
+        fprintf(stderr, "line %d: duplicate label '%s'\n", lineno, name);
+        return 1;
+    }
+    if(num_labels >= MAX_LABELS){
+        fprintf(stderr, "line %d: maximum labelamount %d reached  \n", lineno, MAX_LABELS);
+        return 1;
+    } 
+    
+    if(strlen(name)>= MAX_LABEL_LEN){
+        fprintf(stderr, "line %d: label has too many characters. %zu>%d  \n",lineno, strlen(name), MAX_LABEL_LEN);
+        return 1;
+    }
+    
+    strcpy(labels[num_labels].name, name);
+    labels[num_labels].addr = addr;
+    num_labels++;
+    return 0;
+
+}
 
 int main(int argc, char **argv) {
     if (argc != 3) {
@@ -64,35 +107,60 @@ int main(int argc, char **argv) {
     int lineno = 0;
 
     /* fgets reads one line per call, returns NULL at end of file */
-    while (fgets(line, sizeof line, in) != NULL) {
-        lineno++;
-        char *comment = strchr(line, ';');
-        if (comment != NULL)
-            *comment = '\0';
+    for (int pass = 1; pass <= 2; pass++){
+        fseek(in, 0, SEEK_SET);
+        len = 0;
+        lineno = 0;
+        while (fgets(line, sizeof line, in) != NULL) {
+            lineno++;
+            char *comment = strchr(line, ';');
+            if (comment != NULL)
+                *comment = '\0';
 
-        char *mnemonic = strtok(line, " \t\r\n");
-        if (mnemonic == NULL) continue;
-        const Instr *ins = find_instr(mnemonic);
-        if (ins == NULL) {
-            fprintf(stderr, "line %d: unknown instruction '%s'\n", lineno, mnemonic);
-            return 1;
+            char *mnemonic = strtok(line, " \t\r\n");
+            if (mnemonic == NULL) continue;
+            size_t n = strlen(mnemonic);
+            if (mnemonic[n - 1] == ':') {
+                mnemonic[n - 1] = '\0';
+                if(pass== 1){
+                    if (add_label(mnemonic, len, lineno) != 0) return 1;
+                }
+                mnemonic = strtok(NULL, " \t\r\n");
+                if(mnemonic == NULL) continue; 
+            }
+
+            const Instr *ins = find_instr(mnemonic);
+            if (ins == NULL) {
+                fprintf(stderr, "line %d: unknown instruction '%s'\n", lineno, mnemonic);
+                return 1;
+            }
+            code[len++] = ins->opcode;
+            
+            for(int32_t i = 0; i<ins->nargs; i++){
+            char *arg = strtok(NULL, " \t\r\n");
+            if (arg == NULL) {
+                fprintf(stderr, "line %d: missing parameter '%s'\n", lineno, mnemonic);
+                return 1;
+            }
+            
+            char *end;
+            int value = strtol(arg, &end, 10);
+            if (*end != '\0'){
+                if(pass == 1){
+                    value = 0;
+                }
+                else {
+                    const Label *label = find_label(arg);
+                    if(label == NULL) {
+                        fprintf(stderr, "line %d: unknown label '%s'\n", lineno, arg);
+                        return 1;
+                    }
+                    value = label->addr;
+                }
+            }
+            code[len++] = value;   
+            }
         }
-        code[len++] = ins->opcode;
-        
-        for(int32_t i = 0; i<ins->nargs; i++){
-        char *arg = strtok(NULL, " \t\r\n");
-        if (arg == NULL) {
-            fprintf(stderr, "line %d: missing parameter '%s'\n", lineno, mnemonic);
-            return 1;
-        }
-        char *end;
-        int value = strtol(arg, &end, 10);
-        if (*end != '\0'){
-            fprintf(stderr, "line %d: invalid number '%s'\n", lineno, arg);
-            return 1;
-        }
-        code[len++] = value;   
-    }
     }
     fclose(in);
 
