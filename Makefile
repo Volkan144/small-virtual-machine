@@ -5,7 +5,7 @@ BUILD   := build
 VM_SRC  := src/vm.c
 VM_OBJ  := $(BUILD)/vm.o
 
-.PHONY: all run test asm clean
+.PHONY: all test asm clean
 
 all: $(BUILD)/vm
 
@@ -30,8 +30,6 @@ $(BUILD)/assembler.o: assembler/assembler.c assembler/assembler.h src/opcodes.h 
 $(BUILD)/asm: assembler/asm.c $(BUILD)/assembler.o | $(BUILD)
 	$(CC) $(CFLAGS)  $^ -o $@
 
-run: $(BUILD)/vm
-	./$(BUILD)/vm $(PROG)
 
 test: $(BUILD)/test_vm $(BUILD)/test_asm
 	./$(BUILD)/test_vm
